@@ -1,0 +1,42 @@
+{
+  "A": {
+    "held": 1.9587214023166615
+  },
+  "B": {
+    "holdings": [
+      "XLE",
+      "DBC",
+      "EEM",
+      "GLD",
+      "IWM"
+    ]
+  },
+  "C": {
+    "on": [
+      "SPY",
+      "EFA",
+      "DBC"
+    ]
+  },
+  "D": {
+    "on": true
+  },
+  "E": {
+    "on": true
+  },
+  "last_bar": "2026-10-16",
+  "last_post_utc": "2026-10-17T20:06:22+00:00",
+  "monitor": {
+    "btc_invalid": false,
+    "dd_level": 0,
+    "retired": {
+      "A": false,
+      "B": false,
+      "C": false,
+      "D": false,
+      "E": false
+    }
+  },
+  "provisional_bar": null,
+  "status_month": "2026-10"
+}
