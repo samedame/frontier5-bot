@@ -317,3 +317,69 @@ def test_preclose_skips_holiday_and_weekend_quietly(live_env, capsys):
     clock["now"] = _et(2026, 10, 17, 15, 45)  # Saturday
     assert run.run(run._parse(["--mode", "preclose", "--state", str(sp)])) == 0
     assert "weekend" in capsys.readouterr().out and not sp.exists()
+
+
+# ------------------------------------------------------------------------------------ data download
+def _fake_yf(monkeypatch, panel, broken=(), calls=None):
+    """Fake yfinance.download: the multi-ticker call returns `broken` tickers as empty columns (the
+    'database is locked' failure); single-ticker calls succeed unless the ticker is in `always_bad`."""
+    import sys
+    import types
+    from conftest import make_panel  # noqa: F401
+
+    def build(tickers):
+        cols = list(tickers)
+        parts = {}
+        for name, df in zip(("Close", "High", "Low"), panel):
+            sub = df[cols].copy()
+            parts[name] = sub
+        return pd.concat(parts, axis=1)
+
+    state = {"n": 0}
+
+    def download(tickers, **kw):
+        state["n"] += 1
+        if calls is not None:
+            calls.append(list(tickers))
+        raw = build(tickers)
+        if len(tickers) > 1:
+            for t in broken:
+                for f in ("Close", "High", "Low"):
+                    raw[(f, t)] = float("nan")
+        return raw
+
+    fake = types.SimpleNamespace(download=download, set_tz_cache_location=lambda p: None)
+    monkeypatch.setitem(sys.modules, "yfinance", fake)
+    monkeypatch.setattr("time.sleep", lambda s: None)
+
+
+def test_download_refetches_ticker_dropped_by_locked_cache(monkeypatch):
+    from conftest import make_panel
+    from frontier5 import data as d
+    p = make_panel(end="2026-10-16")
+    calls = []
+    _fake_yf(monkeypatch, p, broken=("XLE",), calls=calls)
+    out = d.download()
+    assert out.close["XLE"].notna().iloc[-1]
+    assert ["XLE"] in calls  # re-fetched on its own
+    d.validate(out, now=_et(2026, 10, 17, 9, 0))
+
+
+def test_download_still_fails_loudly_if_ticker_never_arrives(monkeypatch):
+    import sys
+    from conftest import make_panel
+    from frontier5 import data as d
+    p = make_panel(end="2026-10-16")
+    _fake_yf(monkeypatch, p, broken=("XLE",))
+    real = sys.modules["yfinance"].download
+
+    def stubborn(tickers, **kw):
+        raw = real(tickers, **kw)
+        for f in ("Close", "High", "Low"):
+            raw[(f, "XLE")] = float("nan")
+        return raw
+
+    sys.modules["yfinance"].download = stubborn
+    out = d.download()
+    with pytest.raises(d.DataError, match="XLE"):
+        d.validate(out, now=_et(2026, 10, 17, 9, 0))
