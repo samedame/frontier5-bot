@@ -5,6 +5,7 @@ crypto weekends cannot corrupt equity rolling windows. This module does the same
 """
 from __future__ import annotations
 
+import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
@@ -13,7 +14,7 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 
-from .config import ALL_TICKERS, SIGNAL_TICKERS
+from .config import ALL_TICKERS, BTC, SIGNAL_TICKERS
 
 ET = ZoneInfo("America/New_York")
 
@@ -43,22 +44,78 @@ def to_spy_calendar(close: pd.DataFrame, high: pd.DataFrame, low: pd.DataFrame) 
     return Panel(close.reindex(bdays), high.reindex(bdays), low.reindex(bdays))
 
 
+def _frames(raw: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    return _field(raw, "Close"), _field(raw, "High"), _field(raw, "Low")
+
+
+def _incomplete(close: pd.DataFrame, tickers: list[str]) -> list[str]:
+    """Tickers a download silently dropped: absent, empty, or no bar on SPY's latest day (BTC trades
+    every day, so only the other tickers are held to the last-bar rule)."""
+    if "SPY" not in close.columns or close["SPY"].dropna().empty:
+        return list(tickers)
+    spy_last = close["SPY"].dropna().index[-1]
+    bad = []
+    for t in tickers:
+        if t not in close.columns or close[t].dropna().empty:
+            bad.append(t)
+        elif t != BTC and pd.isna(close[t].get(spy_last, float("nan"))):
+            bad.append(t)
+    return bad
+
+
+def _put(frame: pd.DataFrame, series: pd.Series, ticker: str) -> pd.DataFrame:
+    frame = frame.reindex(frame.index.union(series.index))
+    frame[ticker] = series
+    return frame
+
+
 def download(start: str = "2012-01-01", retries: int = 3, tickers: list[str] | None = None) -> Panel:
+    """Download adjusted daily bars.
+
+    yfinance keeps a SQLite cache that can raise 'database is locked' when several tickers download in
+    parallel (seen on GitHub Actions: XLE came back empty). So: fresh private cache directory, no threads,
+    and any ticker that still comes back empty is re-fetched on its own before validation sees it.
+    """
     import yfinance as yf  # imported lazily so tests and offline use do not need it
 
+    try:
+        yf.set_tz_cache_location(tempfile.mkdtemp(prefix="yf-cache-"))
+    except Exception:
+        pass  # older/newer yfinance without this hook: the retries below still apply
+
     tickers = tickers or ALL_TICKERS
+    frames = None
     last_err: Exception | None = None
     for attempt in range(1, retries + 1):
         try:
-            raw = yf.download(tickers, start=start, auto_adjust=True, progress=False, threads=True)
+            raw = yf.download(tickers, start=start, auto_adjust=True, progress=False, threads=False)
             if raw is None or raw.empty:
                 raise DataError("yfinance returned no data")
-            close, high, low = _field(raw, "Close"), _field(raw, "High"), _field(raw, "Low")
-            return to_spy_calendar(close, high, low)
+            frames = list(_frames(raw))
+            break
         except Exception as exc:  # network, rate limit, schema change
             last_err = exc
             time.sleep(5 * attempt)
-    raise DataError(f"download failed after {retries} attempts: {last_err}")
+    if frames is None:
+        raise DataError(f"download failed after {retries} attempts: {last_err}")
+
+    for attempt in range(1, retries + 1):
+        bad = _incomplete(frames[0], tickers)
+        if not bad:
+            break
+        print(f"re-fetching incomplete tickers (attempt {attempt}): {bad}")
+        for t in bad:
+            try:
+                raw = yf.download([t], start=start, auto_adjust=True, progress=False, threads=False)
+                if raw is None or raw.empty:
+                    continue
+                one = _frames(raw)
+                if t in one[0].columns:
+                    frames = [_put(f, o[t], t) for f, o in zip(frames, one)]
+            except Exception as exc:
+                print(f"  {t}: {exc}")
+        time.sleep(3 * attempt)
+    return to_spy_calendar(*frames)
 
 
 def load_parquet(directory: str | Path) -> Panel:
