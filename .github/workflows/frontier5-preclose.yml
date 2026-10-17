@@ -1,0 +1,67 @@
+name: frontier5-preclose
+
+# Provisional signals from the in-progress bar, so you can trade the last minutes before the close.
+# Started by the Cloudflare open-scheduler Worker at 15:45 ET. No native schedule: GitHub's cron runs
+# hours late on this account, and a late pre-close run is useless (the bot refuses to start after 15:58 ET).
+on:
+  workflow_dispatch:
+    inputs:
+      scheduled_for_et:
+        description: "HH:MM ET the scheduler targeted (sent by open-scheduler)"
+        required: false
+        default: ""
+      trigger:
+        description: "who started this run (cf-scheduler or manual)"
+        required: false
+        default: "manual"
+      skip_window_check:
+        description: "Testing only: ignore the 9:35-15:58 ET window"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: frontier5
+  cancel-in-progress: false
+
+jobs:
+  preclose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Run FRONTIER-5 (pre-close)
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          FRONTIER5_ACCOUNT_USD: ${{ vars.FRONTIER5_ACCOUNT_USD }}
+          FRONTIER5_SHADOW: ${{ vars.FRONTIER5_SHADOW }}
+          FRONTIER5_ENABLED: ${{ vars.FRONTIER5_ENABLED }}
+          FRONTIER5_A_BAND: ${{ vars.FRONTIER5_A_BAND }}
+          FRONTIER5_FRACTIONAL: ${{ vars.FRONTIER5_FRACTIONAL }}
+        run: |
+          python -m frontier5.run --mode preclose \
+            --trigger "${{ inputs.trigger || 'manual' }}" \
+            --scheduled-for-et "${{ inputs.scheduled_for_et }}" \
+            ${{ inputs.skip_window_check && '--no-window-check' || '' }}
+
+      - name: Commit state
+        run: |
+          git config user.name "frontier5-bot"
+          git config user.email "frontier5-bot@users.noreply.github.com"
+          git add state/state.json
+          if git diff --cached --quiet; then
+            echo "state unchanged"
+          else
+            git commit -m "state (pre-close): $(date -u +%Y-%m-%dT%H:%MZ)"
+            git push
+          fi
