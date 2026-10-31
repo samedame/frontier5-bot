@@ -15,7 +15,6 @@
     "on": [
       "SPY",
       "EFA",
-      "EEM",
       "DBC"
     ]
   },
@@ -25,8 +24,8 @@
   "E": {
     "on": false
   },
-  "last_bar": "2026-10-28",
-  "last_post_utc": "2026-10-30T01:18:03+00:00",
+  "last_bar": "2026-10-29",
+  "last_post_utc": "2026-10-31T00:58:58+00:00",
   "monitor": {
     "btc_invalid": false,
     "dd_level": 0,
