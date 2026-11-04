@@ -1,13 +1,13 @@
 {
   "A": {
-    "held": 1.9587214023166615
+    "held": 1.7572737483163756
   },
   "B": {
     "holdings": [
-      "XLE",
       "DBC",
+      "XLE",
       "EEM",
-      "GLD",
+      "QQQ",
       "IWM"
     ]
   },
@@ -15,17 +15,18 @@
     "on": [
       "SPY",
       "EFA",
-      "DBC"
+      "DBC",
+      "VNQ"
     ]
   },
   "D": {
     "on": true
   },
   "E": {
-    "on": false
+    "on": true
   },
-  "last_bar": "2026-10-29",
-  "last_post_utc": "2026-10-31T00:58:58+00:00",
+  "last_bar": "2026-11-02",
+  "last_post_utc": "2026-11-04T01:36:21+00:00",
   "monitor": {
     "btc_invalid": false,
     "dd_level": 0,
@@ -38,5 +39,5 @@
     }
   },
   "provisional_bar": null,
-  "status_month": "2026-10"
+  "status_month": "2026-11"
 }
