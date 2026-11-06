@@ -43,7 +43,7 @@ jobs:
       - name: Run FRONTIER-5 (pre-close)
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          FRONTIER5_ACCOUNT_USD: ${{ vars.FRONTIER5_ACCOUNT_USD }}
+          FRONTIER5_ACCOUNT_USD: ${{ vars.FRONTIER5_ACCOUNT_USD || '1500' }}   # default 1500; a repo variable overrides it
           FRONTIER5_SHADOW: ${{ vars.FRONTIER5_SHADOW }}
           FRONTIER5_ENABLED: ${{ vars.FRONTIER5_ENABLED }}
           FRONTIER5_A_BAND: ${{ vars.FRONTIER5_A_BAND }}
