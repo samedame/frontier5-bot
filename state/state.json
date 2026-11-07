@@ -1,6 +1,6 @@
 {
   "A": {
-    "held": 1.5954292040000904
+    "held": 1.0215348655374434
   },
   "B": {
     "holdings": [
@@ -23,10 +23,10 @@
     "on": true
   },
   "E": {
-    "on": false
+    "on": true
   },
-  "last_bar": "2026-11-04",
-  "last_post_utc": "2026-11-06T01:45:00+00:00",
+  "last_bar": "2026-11-05",
+  "last_post_utc": "2026-11-07T01:05:50+00:00",
   "monitor": {
     "btc_invalid": false,
     "dd_level": 0,
