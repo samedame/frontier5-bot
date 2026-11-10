@@ -43,6 +43,54 @@ def to_spy_calendar(close: pd.DataFrame, high: pd.DataFrame, low: pd.DataFrame) 
     return Panel(close.reindex(bdays), high.reindex(bdays), low.reindex(bdays))
 
 
+def _dead_tickers(close: pd.DataFrame, tickers: list[str]) -> list[str]:
+    """Tickers whose whole column is missing or empty: what a failed per-ticker download looks like."""
+    return [t for t in tickers if t not in close.columns or close[t].dropna().empty]
+
+
+def _by_ticker(raw: pd.DataFrame, name: str, tickers: list[str]) -> pd.DataFrame:
+    f = _field(raw, name)
+    if len(tickers) == 1 and list(f.columns) != tickers:  # flat single-ticker frame: the column is called "Close"
+        f = f.set_axis(tickers, axis=1)
+    return f
+
+
+def _splice(old: pd.DataFrame, new: pd.DataFrame, ok: list[str]) -> pd.DataFrame:
+    """Replace the empty columns `ok` in `old` with the re-fetched ones, keeping the original column order."""
+    order = list(old.columns) + [t for t in ok if t not in old.columns]
+    merged = pd.concat([old.drop(columns=[t for t in ok if t in old.columns]), new[ok]], axis=1)
+    return merged[order]
+
+
+def _refetch_dead(yf, dead: list[str], start: str, retries: int,
+                  close: pd.DataFrame, high: pd.DataFrame, low: pd.DataFrame):
+    """Re-download only the tickers that came back empty, on one thread, and splice them in.
+
+    yfinance does not raise when one ticker of a threaded batch fails. The usual cause is the shared tz-cache
+    SQLite file ("OperationalError('database is locked')"): it prints "1 Failed download" and returns an empty
+    column, which validate() then rejects, so a single unlucky ticker used to kill the whole run (frontier5
+    2026-11-02 and the first pre-close run on 2026-11-09). A ticker that stays empty after the retries is left
+    empty, so validate() still reports it and the bot still refuses to emit signals from bad data."""
+    for attempt in range(1, retries + 1):
+        print(f"[data] {len(dead)} ticker(s) came back empty ({', '.join(dead)}); re-fetching one thread (attempt {attempt}/{retries})")
+        try:
+            raw = yf.download(dead, start=start, auto_adjust=True, progress=False, threads=False)
+            if raw is not None and not raw.empty:
+                c, h, l = (_by_ticker(raw, n, dead) for n in ("Close", "High", "Low"))
+                ok = [t for t in dead if t in c.columns and not c[t].dropna().empty]
+                if ok:
+                    close, high, low = (_splice(old, new, ok) for old, new in ((close, c), (high, h), (low, l)))
+                    dead = [t for t in dead if t not in ok]
+                    print(f"[data] recovered {', '.join(ok)}")
+        except Exception as exc:  # same failure family as the batch; try again
+            print(f"[data] re-fetch failed: {exc}")
+        if not dead:
+            break
+        if attempt < retries:
+            time.sleep(2 * attempt)
+    return close, high, low
+
+
 def download(start: str = "2012-01-01", retries: int = 3, tickers: list[str] | None = None) -> Panel:
     import yfinance as yf  # imported lazily so tests and offline use do not need it
 
@@ -54,6 +102,9 @@ def download(start: str = "2012-01-01", retries: int = 3, tickers: list[str] | N
             if raw is None or raw.empty:
                 raise DataError("yfinance returned no data")
             close, high, low = _field(raw, "Close"), _field(raw, "High"), _field(raw, "Low")
+            dead = _dead_tickers(close, tickers)
+            if dead:
+                close, high, low = _refetch_dead(yf, dead, start, retries, close, high, low)
             return to_spy_calendar(close, high, low)
         except Exception as exc:  # network, rate limit, schema change
             last_err = exc
