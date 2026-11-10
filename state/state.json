@@ -15,7 +15,6 @@
     "on": [
       "SPY",
       "EFA",
-      "DBC",
       "VNQ"
     ]
   },
@@ -23,10 +22,10 @@
     "on": true
   },
   "E": {
-    "on": true
+    "on": false
   },
-  "last_bar": "2026-11-05",
-  "last_post_utc": "2026-11-07T01:05:50+00:00",
+  "last_bar": "2026-11-09",
+  "last_post_utc": "2026-11-10T03:44:41+00:00",
   "monitor": {
     "btc_invalid": false,
     "dd_level": 0,
