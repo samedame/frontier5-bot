@@ -20,7 +20,7 @@
   "E": {
     "on": true
   },
-  "last_bar": "2026-11-19",
+  "last_bar": "2026-11-20",
   "last_post_utc": "2026-11-20T02:30:54+00:00",
   "monitor": {
     "btc_invalid": false,
@@ -33,6 +33,6 @@
       "E": false
     }
   },
-  "provisional_bar": null,
+  "provisional_bar": "2026-11-20",
   "status_month": "2026-11"
 }
