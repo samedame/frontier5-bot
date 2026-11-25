@@ -12,7 +12,9 @@
     ]
   },
   "C": {
-    "on": []
+    "on": [
+      "VNQ"
+    ]
   },
   "D": {
     "on": false
@@ -20,8 +22,8 @@
   "E": {
     "on": false
   },
-  "last_bar": "2026-11-24",
-  "last_post_utc": "2026-11-25T04:30:08+00:00",
+  "last_bar": "2026-11-25",
+  "last_post_utc": "2026-11-25T20:45:40+00:00",
   "monitor": {
     "btc_invalid": false,
     "dd_level": 0,
@@ -33,6 +35,6 @@
       "E": false
     }
   },
-  "provisional_bar": null,
+  "provisional_bar": "2026-11-25",
   "status_month": "2026-11"
 }
