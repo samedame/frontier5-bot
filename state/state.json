@@ -24,7 +24,7 @@
     "on": false
   },
   "last_bar": "2026-11-27",
-  "last_post_utc": "2026-11-27T20:45:41+00:00",
+  "last_post_utc": "2026-11-28T03:28:19+00:00",
   "monitor": {
     "btc_invalid": false,
     "dd_level": 0,
@@ -36,6 +36,6 @@
       "E": false
     }
   },
-  "provisional_bar": "2026-11-27",
+  "provisional_bar": null,
   "status_month": "2026-11"
 }
